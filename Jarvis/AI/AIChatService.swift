@@ -160,7 +160,7 @@ struct AIChatService: Sendable {
                     emit(.textDelta(chunk))
                 case .toolCallDelta(let index, let id, let name, let fragment):
                     accumulator.append(index: index, id: id, name: name, argumentsFragment: fragment)
-                case .usage:
+                case .usage(_, _):
                     break
                 case .completed(let reason):
                     stopReason = reason

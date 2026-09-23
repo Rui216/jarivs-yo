@@ -535,6 +535,13 @@ enum CommandWhitelist {
                 continue
             }
 
+            // Some tools accept bare word arguments, for example `ps aux`.
+            // The catalog lists those words explicitly, so nothing else passes.
+            if binary.allowedFlags.contains(argument) {
+                index += 1
+                continue
+            }
+
             if !binary.allowedSubcommands.isEmpty && !sawSubcommand {
                 guard binary.allowedSubcommands.contains(argument) else {
                     throw AutomationError.commandNotPermitted(

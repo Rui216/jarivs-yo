@@ -308,6 +308,117 @@ def check_tool_wiring() -> None:
             fail(f"tool {identifier} ({wire_name}) has no handler in AutomationToolBridge")
 
 
+
+# Service properties exposed by AppEnvironment, mapped to the type that
+# defines the members accessed through them.
+ENVIRONMENT_SERVICES = {
+    "settings": "AppSettings",
+    "apiKeys": "APIKeyStore",
+    "calendarAutomation": "CalendarAutomation",
+    "calendarStore": "CalendarStore",
+    "tasks": "TaskService",
+    "homework": "HomeworkService",
+    "notes": "NoteService",
+    "fileSearch": "FileSearchService",
+    "quickTools": "QuickToolsService",
+    "monitor": "SystemMonitorService",
+    "weather": "WeatherService",
+    "clock": "ClockService",
+    "focusTimer": "FocusTimerService",
+    "permissions": "PermissionService",
+    "confirmations": "AutomationConfirmationCenter",
+    "chatService": "AIChatService",
+    "automation": "AutomationToolBridge",
+    "chat": "ChatViewModel",
+    "speech": "SpeechRecognitionService",
+    "appState": "AppState",
+}
+
+ENVIRONMENT_ACCESS = re.compile(r"\benvironment\.([a-zA-Z_]\w*)")
+INSTANCE_ACCESS = re.compile(r"\benvironment\.(\w+)\.([a-zA-Z_]\w*)")
+
+
+def type_member_tokens(sources: dict[Path, str]) -> dict[str, set[str]]:
+    """Token sets for every type, gathered from its declaration and extensions."""
+    tokens: dict[str, set[str]] = {}
+    for name in set(ENVIRONMENT_SERVICES.values()) | {"AppEnvironment"}:
+        collected: set[str] = set()
+        pattern = re.compile(r"\b(?:struct|class|enum|actor|extension)\s+" + name + r"\b")
+        for content in sources.values():
+            if pattern.search(content):
+                collected.update(re.findall(r"[A-Za-z_]\w*", content))
+        tokens[name] = collected
+    return tokens
+
+
+def check_environment_access() -> None:
+    """Verifies that members accessed through `environment` really exist."""
+    sources = {path: strip_swift_noise(path.read_text(encoding="utf-8")) for path in swift_files()}
+    tokens = type_member_tokens(sources)
+
+    for path, content in sources.items():
+        for match in INSTANCE_ACCESS.finditer(content):
+            service, member = match.group(1), match.group(2)
+            type_name = ENVIRONMENT_SERVICES.get(service)
+            if type_name is None:
+                # A member of AppEnvironment itself.
+                if member not in tokens["AppEnvironment"] and member not in INHERITED_MEMBERS:
+                    fail(f"{path.relative_to(ROOT)}: AppEnvironment.{member} is not declared")
+                continue
+            if member in INHERITED_MEMBERS:
+                continue
+            if member not in tokens[type_name]:
+                fail(
+                    f"{path.relative_to(ROOT)}: environment.{service}.{member} does not exist "
+                    f"on {type_name}"
+                )
+
+        for match in ENVIRONMENT_ACCESS.finditer(content):
+            member = match.group(1)
+            if member in ENVIRONMENT_SERVICES:
+                continue
+            if member in tokens["AppEnvironment"] or member in INHERITED_MEMBERS:
+                continue
+            fail(f"{path.relative_to(ROOT)}: environment.{member} is not declared")
+
+
+
+BARE_CASE_PATTERN = re.compile(r"case\s+\.(\w+)\s*:")
+CASE_WITH_PAYLOAD = re.compile(r"\bcase\s+(\w+)\s*\(")
+CASE_PLAIN = re.compile(r"^\s*case\s+(\w+)\s*:?\s*(?://.*)?$", re.M)
+
+
+def check_enum_case_patterns() -> None:
+    """Rejects bare patterns for cases that carry associated values.
+
+    `case .name:` is only unambiguous when `name` never carries associated
+    values, so a wildcard is required. Writing it explicitly keeps the match
+    honest and readable.
+    """
+    payload: dict[str, set[str]] = {}
+    plain: set[str] = set()
+
+    for path in swift_files():
+        content = strip_swift_noise(path.read_text(encoding="utf-8"))
+        for match in CASE_WITH_PAYLOAD.finditer(content):
+            payload.setdefault(match.group(1), set()).add(path.name)
+        for match in CASE_PLAIN.finditer(content):
+            plain.add(match.group(1))
+
+    ambiguous = {name for name in payload if name not in plain}
+    if not ambiguous:
+        return
+
+    for path in swift_files():
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            match = BARE_CASE_PATTERN.search(line)
+            if match and match.group(1) in ambiguous:
+                fail(
+                    f"{path.relative_to(ROOT)}:{number}: case .{match.group(1)} matches a case with "
+                    "associated values; write the payload pattern explicitly"
+                )
+
+
 def main() -> int:
     check_brackets()
     check_emoji()
@@ -318,6 +429,8 @@ def main() -> int:
     check_tuple_key_paths()
     check_references()
     check_tool_wiring()
+    check_environment_access()
+    check_enum_case_patterns()
 
     print(f"Checked {len(swift_files())} Swift files in {SOURCE_DIR.relative_to(ROOT)}")
 

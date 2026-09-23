@@ -267,7 +267,7 @@ final class ChatViewModel {
 
     private func handle(_ event: AssistantRunEvent, bubbleID: UUID) {
         switch event {
-        case .iterationStarted:
+        case .iterationStarted(_):
             if case .working = activity {
                 activity = .thinking
             }

@@ -108,7 +108,7 @@ enum AssistantActivity: Equatable {
         case .idle: return JarvisTheme.Palette.textTertiary
         case .listening: return JarvisTheme.Palette.danger
         case .thinking: return JarvisTheme.Palette.warning
-        case .working: return JarvisTheme.Palette.accent
+        case .working(_): return JarvisTheme.Palette.accent
         }
     }
 

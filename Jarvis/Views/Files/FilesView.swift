@@ -64,7 +64,7 @@ struct FilesView: View {
                         .padding(.vertical, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Calendar.current.isDateInToday(Date()) && currentFolder.path == folder.url.path
+                                .fill(currentFolder.path == folder.url.path
                                       ? JarvisTheme.Palette.accent.opacity(0.14)
                                       : JarvisTheme.Palette.canvas.opacity(0.4))
                         )

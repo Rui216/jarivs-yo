@@ -273,8 +273,7 @@ struct QuickToolsSettingsSection: View {
                         Toggle("", isOn: Binding(
                             get: { shortcut.isEnabled },
                             set: { newValue in
-                                shortcut.isEnabled = newValue
-                                try? environment.modelContainer.mainContext.save()
+                                environment.quickTools.setEnabled(newValue, for: shortcut)
                             }
                         ))
                         .labelsHidden()

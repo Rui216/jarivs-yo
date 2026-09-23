@@ -169,9 +169,7 @@ final class CalendarAutomation {
         if let notes, !notes.isEmpty { event.notes = notes }
         if let location, !location.isEmpty { event.location = location }
 
-        if let calendarName, let match = store.calendars(for: .event).first(where: {
-            $0.title.localizedCaseInsensitiveCompare(calendarName) == .orderedAscending
-        }) {
+        if let calendarName, let match = bestMatch(for: calendarName, in: store.calendars(for: .event)) {
             event.calendar = match
         } else {
             guard let fallback = store.defaultCalendarForNewEvents else {
@@ -220,9 +218,7 @@ final class CalendarAutomation {
         reminder.title = title
         if let notes, !notes.isEmpty { reminder.notes = notes }
 
-        if let listName, let match = store.calendars(for: .reminder).first(where: {
-            $0.title.localizedCaseInsensitiveCompare(listName) == .orderedAscending
-        }) {
+        if let listName, let match = bestMatch(for: listName, in: store.calendars(for: .reminder)) {
             reminder.calendar = match
         } else {
             guard let fallback = store.defaultCalendarForNewReminders() else {
@@ -247,5 +243,29 @@ final class CalendarAutomation {
         }
 
         return title
+    }
+
+    /// Picks the calendar or reminder list that best matches a spoken name.
+    ///
+    /// An exact case insensitive match wins, then a name that contains the
+    /// request, then a request that contains the name. The shortest candidate
+    /// is preferred so "Home" does not select "Home and Family Errands" when
+    /// both contain the word.
+    private func bestMatch(for name: String, in candidates: [EKCalendar]) -> EKCalendar? {
+        let wanted = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !wanted.isEmpty else { return nil }
+
+        if let exact = candidates.first(where: { $0.title.compare(wanted, options: .caseInsensitive) == .orderedSame }) {
+            return exact
+        }
+
+        let partial = candidates
+            .filter {
+                $0.title.range(of: wanted, options: .caseInsensitive) != nil
+                    || wanted.range(of: $0.title, options: .caseInsensitive) != nil
+            }
+            .sorted { $0.title.count < $1.title.count }
+
+        return partial.first
     }
 }

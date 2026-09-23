@@ -247,7 +247,7 @@ struct TasksView: View {
             Menu {
                 Picker("Priority", selection: Binding(
                     get: { task.priority },
-                    set: { task.priority = $0; try? environment.modelContainer.mainContext.save() }
+                    set: { environment.tasks.setPriority($0, for: task) }
                 )) {
                     ForEach(TaskPriority.allCases) { level in
                         Text(level.displayName).tag(level)

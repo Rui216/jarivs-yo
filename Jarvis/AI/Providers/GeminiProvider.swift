@@ -188,7 +188,7 @@ struct GeminiProvider: AIProvider {
                         parts.append(["inlineData": ["mimeType": mediaType, "data": base64]])
                     case .toolResult(_, let name, let content, let isError):
                         parts.append(functionResponsePart(name: name, content: content, isError: isError))
-                    case .toolCall:
+                    case .toolCall(_, _, _):
                         continue
                     }
                 }

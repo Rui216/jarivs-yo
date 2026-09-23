@@ -100,7 +100,7 @@ final class AppEnvironment {
         let homework = HomeworkService(context: context)
         let notes = NoteService(context: context)
         let fileSearch = FileSearchService()
-        let quickTools = QuickToolsService()
+        let quickTools = QuickToolsService(context: context)
         let monitor = SystemMonitorService()
         let weather = WeatherService()
         let clock = ClockService()
@@ -157,7 +157,7 @@ final class AppEnvironment {
         self.speech = speech
         self.appState = appState
 
-        quickTools.seedDefaultsIfNeeded(context: context)
+        quickTools.seedDefaultsIfNeeded()
         chat.loadHistory()
         focusTimer.refreshTodayTotals()
     }

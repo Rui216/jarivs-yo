@@ -166,7 +166,10 @@ final class BrowserAutomation {
 
     /// Opens a URL in the requested browser, in a new tab or a new window.
     ///
-    /// Falls back to a plain launch when the browser is not scriptable.
+    /// Chromium browsers and Safari are driven with Apple Events, which is the
+    /// only way to place the address in a specific tab or window. Arc does not
+    /// publish a scripting dictionary, so it is handed the address through
+    /// NSWorkspace instead, which needs no Automation permission at all.
     func open(url: URL, in target: BrowserTarget, newWindow: Bool = false) async throws {
         guard let applicationName = target.scriptApplicationName else {
             guard openInDefaultBrowser(url) else {
@@ -179,8 +182,37 @@ final class BrowserAutomation {
             throw AutomationError.unsupportedBrowser(target.displayName)
         }
 
+        if target == .arc {
+            try openWithApplication(url: url, bundleIdentifier: target.bundleIdentifier)
+            return
+        }
+
         let script = Self.tabScript(url: url, applicationName: applicationName, newWindow: newWindow, target: target)
         _ = try await scripts.run(script: script, timeout: 20)
+    }
+
+    /// Opens a URL with a specific application bundle, without Apple Events.
+    ///
+    /// Used for browsers that do not publish a scripting dictionary.
+    private func openWithApplication(url: URL, bundleIdentifier: String?) throws {
+        guard let bundleIdentifier,
+              let applicationURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+            throw AutomationError.unsupportedBrowser(bundleIdentifier ?? "the requested browser")
+        }
+
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        // Captured locally so the completion handler never touches the main
+        // actor isolated instance.
+        let logger = self.logger
+
+        NSWorkspace.shared.open([url], withApplicationAt: applicationURL, configuration: configuration) { application, error in
+            if let error {
+                logger.error("Opening the address failed: \(error.localizedDescription, privacy: .public)")
+            } else {
+                logger.debug("Opened an address in \(application?.bundleIdentifier ?? bundleIdentifier, privacy: .public)")
+            }
+        }
     }
 
     /// Runs a web search in the default browser.
@@ -214,15 +246,26 @@ final class BrowserAutomation {
             if newWindow {
                 return """
                 tell application "Safari"
-                    make new document with properties {URL:"\(escaped)"}
                     activate
+                    make new document with properties {URL:"\(escaped)"}
                 end tell
                 """
             }
+            // Prefer a tab in the existing window, and fall back to a document
+            // when the installed Safari build does not script tabs.
             return """
             tell application "Safari"
-                open location "\(escaped)"
                 activate
+                if (count of windows) = 0 then
+                    make new document
+                end if
+                try
+                    tell front window
+                        set current tab to (make new tab with properties {URL:"\(escaped)"})
+                    end tell
+                on error
+                    make new document with properties {URL:"\(escaped)"}
+                end try
             end tell
             """
 
@@ -230,24 +273,39 @@ final class BrowserAutomation {
             if newWindow {
                 return """
                 tell application "\(applicationName)"
-                    make new window
-                    set URL of active tab of front window to "\(escaped)"
                     activate
+                    set newWindow to make new window
+                    set URL of active tab of newWindow to "\(escaped)"
                 end tell
                 """
             }
+            // Chromium browsers accept the standard open location handler and
+            // scripted tabs. The fallback covers a window that never appeared.
             return """
             tell application "\(applicationName)"
-                open location "\(escaped)"
                 activate
+                if (count of windows) = 0 then
+                    make new window
+                end if
+                try
+                    tell front window
+                        make new tab with properties {URL:"\(escaped)"}
+                        set active tab index to (count of tabs)
+                    end tell
+                on error
+                    make new window
+                    set URL of active tab of front window to "\(escaped)"
+                end try
             end tell
             """
 
         case .arc:
+            // Arc is handled through NSWorkspace; this branch exists so the
+            // switch stays exhaustive if a script is ever requested for it.
             return """
             tell application "\(applicationName)"
-                open location "\(escaped)"
                 activate
+                open location "\(escaped)"
             end tell
             """
         }

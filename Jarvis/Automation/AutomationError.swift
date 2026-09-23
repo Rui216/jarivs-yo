@@ -88,13 +88,13 @@ enum AutomationError: LocalizedError, Equatable {
     /// Optional recovery hint shown under the error in the chat transcript.
     var recoverySuggestion: String? {
         switch self {
-        case .automationPermissionDenied:
+        case .automationPermissionDenied(_):
             return "Open System Settings, Privacy and Security, Automation, and enable JARVIS for the target application."
         case .calendarAccessDenied, .remindersAccessDenied:
             return "Open Settings, Permissions in JARVIS and use the Request Access button."
-        case .commandNotPermitted:
+        case .commandNotPermitted(_):
             return "Only read only commands from the whitelist can run. See Settings, Permissions for the full list."
-        case .pathNotAllowed:
+        case .pathNotAllowed(_):
             return "Move the item into your home folder, or open it manually."
         default:
             return nil

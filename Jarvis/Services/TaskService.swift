@@ -56,6 +56,30 @@ final class TaskService {
         save()
     }
 
+    /// Changes the priority of a task.
+    func setPriority(_ priority: TaskPriority, for item: TaskItem) {
+        item.priority = priority
+        save()
+    }
+
+    /// Changes the due date of a task, or clears it when nil.
+    func setDueDate(_ dueDate: Date?, for item: TaskItem) {
+        item.dueDate = dueDate
+        save()
+    }
+
+    /// Updates the title and detail text of a task.
+    func update(_ item: TaskItem, title: String? = nil, detail: String? = nil) {
+        if let title {
+            let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { item.title = trimmed }
+        }
+        if let detail {
+            item.detail = detail
+        }
+        save()
+    }
+
     /// Deletes a task.
     func delete(_ item: TaskItem) {
         context.delete(item)

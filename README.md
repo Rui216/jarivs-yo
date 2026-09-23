@@ -120,9 +120,13 @@ xcodebuild -project Jarvis.xcodeproj -scheme Jarvis -configuration Debug build
 This runs `Scripts/check_sources.py`, which needs only Python 3. It checks
 bracket balance, scans for emoji and pictographs, looks for committed API keys,
 rejects leftover TODO and FIXME markers, validates every JSON asset and plist,
-verifies that namespaced API references resolve, rejects key paths into tuple
-elements, and confirms that every declared assistant tool has both a schema and
-an execution handler.
+rejects key paths into tuple elements, rejects a bare `case .name` pattern when
+that case carries associated values, verifies that `Type.member` and
+`environment.service.member` references resolve to something the project
+declares, and confirms that every declared assistant tool has both a schema in
+`AssistantToolCatalog` and a handler in `AutomationToolBridge`. The same script
+also regenerates nothing: it only reads. The app icon set is produced separately
+by `python3 Scripts/make_app_icons.py`.
 
 ---
 
@@ -387,11 +391,14 @@ Set a city in **Settings, General, Weather**, or press **Use my current location
 
 - `Scripts/verify.sh` passes on the current tree: 84 Swift files, balanced
   delimiters, no emoji, no committed keys, valid JSON and plists, every
-  namespaced reference resolved, and all 19 assistant tools wired end to end.
-- The project has not been compiled in a CI environment yet. The first `xcodebuild`
-  run on your Mac is the real compile check; if a signature mismatch shows up, it
-  will be in the SwiftUI view layer rather than in the services, which are written
-  against stable APIs.
+  namespaced reference and environment access resolved, every enum case pattern
+  carrying its payload, and all 19 assistant tools wired end to end.
+- The project has not been compiled in a CI environment yet, because this
+  repository was written on a machine without Xcode. The first `xcodebuild` run
+  on your Mac is the real compile check. The source avoids the usual traps:
+  every file that uses `@Model` or `@Query` imports SwiftData, `onChange` uses
+  the two parameter form, no key path points into a tuple, and every
+  `jarvisCard`, `assign`, and `Color(hex:)` call matches its declaration.
 
 ---
 

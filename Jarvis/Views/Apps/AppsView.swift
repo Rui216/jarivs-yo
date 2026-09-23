@@ -122,16 +122,15 @@ struct AppsView: View {
         .opacity(shortcut.isEnabled ? 1 : 0.6)
         .contextMenu {
             Button(shortcut.isEnabled ? "Hide from dashboard" : "Show on dashboard") {
-                shortcut.isEnabled.toggle()
-                try? environment.modelContainer.mainContext.save()
+                environment.quickTools.setEnabled(!shortcut.isEnabled, for: shortcut)
             }
             Button("Edit") { editingShortcut = shortcut }
             Divider()
-            Button("Move left") { move(shortcut, by: -1) }
-            Button("Move right") { move(shortcut, by: 1) }
+            Button("Move left") { environment.quickTools.move(shortcut, by: -1) }
+            Button("Move right") { environment.quickTools.move(shortcut, by: 1) }
             Divider()
             Button("Delete", role: .destructive) {
-                environment.quickTools.delete(shortcut, in: environment.modelContainer.mainContext)
+                environment.quickTools.delete(shortcut)
                 statusMessage = "Removed \(shortcut.name)."
             }
         }
@@ -169,17 +168,6 @@ struct AppsView: View {
 
     // MARK: - Actions
 
-    private func move(_ shortcut: AppShortcut, by offset: Int) {
-        let ordered = shortcuts.sorted { $0.sortOrder < $1.sortOrder }
-        guard let index = ordered.firstIndex(where: { $0.id == shortcut.id }) else { return }
-        let target = index + offset
-        guard target >= 0, target < ordered.count else { return }
-        let other = ordered[target]
-        let swappedOrder = shortcut.sortOrder
-        shortcut.sortOrder = other.sortOrder
-        other.sortOrder = swappedOrder
-        try? environment.modelContainer.mainContext.save()
-    }
 }
 
 // MARK: - Editor
@@ -327,14 +315,16 @@ struct ShortcutEditorSheet: View {
         guard !trimmedName.isEmpty, !trimmedTarget.isEmpty else { return }
 
         if let shortcut {
-            shortcut.name = trimmedName
-            shortcut.symbolName = symbolName
-            shortcut.kind = kind
-            shortcut.target = trimmedTarget
-            shortcut.tintHex = tintHex
+            environment.quickTools.update(
+                shortcut,
+                name: trimmedName,
+                symbolName: symbolName,
+                kind: kind,
+                target: trimmedTarget,
+                tintHex: tintHex
+            )
         } else {
             environment.quickTools.createShortcut(
-                in: environment.modelContainer.mainContext,
                 name: trimmedName,
                 symbolName: symbolName,
                 kind: kind,
@@ -343,7 +333,6 @@ struct ShortcutEditorSheet: View {
             )
         }
 
-        try? environment.modelContainer.mainContext.save()
         dismiss()
     }
 }

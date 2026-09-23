@@ -193,7 +193,7 @@ struct AnthropicProvider: AIProvider {
                         ]
                     case .toolResult(let id, _, let content, _):
                         return toolResultBlock(id: id, content: content)
-                    case .toolCall:
+                    case .toolCall(_, _, _):
                         return nil
                     }
                 }
