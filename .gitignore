@@ -1,0 +1,27 @@
+# Generated Xcode project (recreate with Scripts/bootstrap.sh)
+Jarvis.xcodeproj/
+
+# Build products
+build/
+DerivedData/
+*.xcarchive
+*.dSYM
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Swift Package Manager (not used, kept for safety)
+.swiftpm/
+.build/
+Package.resolved
+
+# macOS
+.DS_Store
+._*
+
+# Logs and local scratch files
+*.log
+.env
+.env.*
